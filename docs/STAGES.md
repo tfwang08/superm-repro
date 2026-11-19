@@ -34,9 +34,11 @@ This project separates **algorithm correctness**, **controlled instability**, **
 
 **Scope:** Use a licensed G1 MuJoCo asset, first for standing and shallow squats, then for short simple motion clips.
 
+**Stage 3.1 implemented:** A 29-actuator floating-base G1 with primitive collision contacts, position-setpoint actions, randomized contact friction, a stationary `home` reference, differentiable standing reward/termination, and the existing 8-step model / H-step actor / critic loop. This is an executable benchmark, not yet a trained standing controller. See [G1_STANDING.md](G1_STANDING.md).
+
 **Required changes:**
 
-- Implement the G1 rigid-body model and normalized joint-setpoint PD actuator mapping.
+- Add model visualization and further verify contact dynamics against the unmodified Menagerie model.
 - Implement the paper's joint/root state and 29-joint observation history, including IMU angular velocity, projected gravity, and the Appendix A.1 sensor-noise ranges.
 - Implement differentiable forward kinematics and the body/root tracking reward of Appendix A.2 without the removed self-collision penalty.
 - Implement height/tilt reference-relative termination and the corresponding soft survival signal.

@@ -2,11 +2,30 @@
 
 import random
 from dataclasses import dataclass
+from typing import Protocol
 
 import torch
+from torch import Tensor
 
 from .models import MotionPolicy, WorldModel
-from .mujoco_cartpole import MujocoCartPole
+
+
+class EvaluatableTask(Protocol):
+    """Common simulator interface for cart-poles and humanoid benchmarks."""
+
+    spaces: object
+
+    def reference(self, length: int) -> Tensor: ...
+
+    def reset(self, initial_goal: Tensor, context: Tensor) -> Tensor: ...
+
+    def step(self, executed_action: Tensor) -> Tensor: ...
+
+    def observation(self, state: Tensor) -> Tensor: ...
+
+    def reward(self, next_state: Tensor, action: Tensor, next_goal: Tensor) -> Tensor: ...
+
+    def hard_done(self, next_state: Tensor, next_goal: Tensor) -> Tensor: ...
 
 
 @dataclass(frozen=True)
@@ -18,8 +37,8 @@ class EvaluationStats:
 
 
 @torch.no_grad()
-def evaluate_cartpole(
-    task: MujocoCartPole,
+def evaluate_tracking_task(
+    task: EvaluatableTask,
     actor: MotionPolicy,
     model: WorldModel,
     *,
@@ -90,3 +109,7 @@ def evaluate_cartpole(
         failure_rate=failures / episodes,
         model_state_mse=(sum(model_errors) / len(model_errors)) if model_errors else float("nan"),
     )
+
+
+# Preserve the previous public API used by cart-pole experiments and tests.
+evaluate_cartpole = evaluate_tracking_task

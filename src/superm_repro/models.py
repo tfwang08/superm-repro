@@ -22,15 +22,34 @@ def make_mlp(input_dim: int, hidden: Sequence[int], output_dim: int) -> nn.Seque
 class WorldModel(nn.Module):
     """Learn f(s, a, context) -> next state; task heads may be analytic."""
 
-    def __init__(self, spaces: Spaces, hidden: Sequence[int] = (2048, 2048, 2048)):
+    def __init__(
+        self,
+        spaces: Spaces,
+        hidden: Sequence[int] = (2048, 2048, 2048),
+        quaternion_slice: tuple[int, int] | None = None,
+    ):
         super().__init__()
+        if quaternion_slice is not None and (
+            quaternion_slice[1] - quaternion_slice[0] != 4
+            or not (0 <= quaternion_slice[0] < quaternion_slice[1] <= spaces.state)
+        ):
+            raise ValueError("Quaternion slice must identify four state components")
+        self.quaternion_slice = quaternion_slice
         self.dynamics = make_mlp(
             spaces.state + spaces.action + spaces.context, hidden, spaces.state
         )
 
     def forward(self, state: Tensor, action: Tensor, context: Tensor) -> Tensor:
         state_delta = self.dynamics(torch.cat((state, action, context), dim=-1))
-        return state + state_delta
+        prediction = state + state_delta
+        if self.quaternion_slice is not None:
+            start, end = self.quaternion_slice
+            quaternion = prediction[..., start:end]
+            quaternion = quaternion / quaternion.norm(dim=-1, keepdim=True).clamp_min(1e-6)
+            prediction = torch.cat(
+                (prediction[..., :start], quaternion, prediction[..., end:]), dim=-1
+            )
+        return prediction
 
 
 class MotionPolicy(nn.Module):

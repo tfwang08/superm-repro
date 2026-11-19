@@ -17,6 +17,9 @@ dev = ["pytest>=8", "ruff>=0.6"]
 [tool.setuptools.packages.find]
 where = ["src"]
 
+[tool.setuptools.package-data]
+superm_repro = ["assets/unitree_g1/*.xml", "assets/unitree_g1/LICENSE"]
+
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 
