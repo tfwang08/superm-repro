@@ -1,5 +1,7 @@
 """Integration checks using actual MuJoCo rigid-body transitions."""
 
+import random
+
 import pytest
 import torch
 
@@ -57,3 +59,31 @@ def test_cartpole_deterministic_evaluation() -> None:
     assert 0.0 <= first.failure_rate <= 1.0
     assert first.mean_survival_steps > 0.0
     assert torch.isfinite(torch.tensor(first.model_state_mse))
+
+
+@pytest.mark.parametrize("links", (1, 2, 3))
+def test_multilink_cartpole_has_one_cart_actuator(links: int) -> None:
+    pytest.importorskip("mujoco")
+    task = MujocoCartPole(links=links, motion="step")
+    assert task.model.nq == links + 1
+    assert task.model.nv == links + 1
+    assert task.model.nu == 1
+    assert task.spaces.state == 2 * (links + 1) + 1
+    assert task.spaces.goal == links + 1
+    context = task.sample_context()
+    reference = task.reference(150)
+    initial = task.reset(reference[0], context)
+    next_state = task.step(torch.zeros(1))
+    assert initial.shape == next_state.shape == (task.spaces.state,)
+    assert torch.isfinite(next_state).all()
+
+
+def test_step_reference_switches_once_between_steps_15_and_50() -> None:
+    random.seed(23)
+    task = MujocoCartPole(motion="step", links=2)
+    target = task.reference(150)[:, 0]
+    changes = torch.where((target[1:] - target[:-1]).abs() > 1e-8)[0]
+    assert changes.numel() == 1
+    assert 15 <= int(changes[0]) + 1 <= 50
+    assert target.abs().max() <= 1.15
+    assert torch.equal(target[changes[0] + 1 :], target[-1].expand_as(target[changes[0] + 1 :]))

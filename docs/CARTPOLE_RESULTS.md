@@ -1,5 +1,7 @@
 # Stage 1: MuJoCo cart-pole results
 
+**Historical baseline:** These measurements refer to the single-link upright-balance implementation at commit `7523978`, before reference-relative policy inputs, reflection antisymmetry, step-target training, and multi-link physics were introduced. Do not compare these numbers directly with the new experiments.
+
 This log records actual local training runs, not projected performance. The results establish that the initial algorithm wiring can improve control of an underactuated inverted pendulum. They **do not** reproduce the paper's humanoid benchmark.
 
 ## Evaluation protocol

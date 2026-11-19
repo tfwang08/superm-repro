@@ -26,9 +26,9 @@ This project separates **algorithm correctness**, **controlled instability**, **
 
 ## Stage 2: Triple-link inverted pendulum
 
-**Scope:** Keep the same training algorithm but raise the control difficulty with three linked inverted rods. Specify and document actuator placement and termination before training; an underactuated cart-based variant is the eventual stress test.
+**Scope:** Extend the existing cart with two or three serial, passive upright links while retaining the same single force actuator. Use reference-relative policy inputs, exact left-right antisymmetry, and step-target training. The single-, double-, and triple-link MJCFs share the same simulator and learning code.
 
-**Verification:** Measure time until failure, angular tracking error, recovery from small disturbances, and model prediction error over the same horizon.
+**Verification:** Measure time until failure, angular tracking error, recovery after goal reversals, and eight-step model prediction error over the same horizon. First confirm tests and short two-link rollouts; then train three links. For a fair baseline/experiment comparison, use four seeds, 320 iterations, 256-step simulator episodes, checkpoint every 40 iterations, independent validation selection, and a frozen 96-episode long test. See [MULTILINK_EXPERIMENT.md](MULTILINK_EXPERIMENT.md).
 
 ## Stage 3: Unitree G1 basic references
 

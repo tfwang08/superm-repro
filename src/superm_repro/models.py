@@ -42,9 +42,15 @@ class MotionPolicy(nn.Module):
         latent_dim: int = 32,
         encoder_hidden: Sequence[int] = (2048, 1024, 512, 256),
         decoder_hidden: Sequence[int] = (2048, 1024, 512, 256),
+        relative_goal: bool = False,
+        antisymmetric: bool = False,
     ):
         super().__init__()
+        if antisymmetric and spaces.action != 1:
+            raise ValueError("Antisymmetric cart-force policies require one action dimension")
         self.spaces = spaces
+        self.relative_goal = relative_goal
+        self.antisymmetric = antisymmetric
         self.goal_encoder = make_mlp(
             spaces.goal_horizon * spaces.goal, encoder_hidden, latent_dim
         )
@@ -54,6 +60,11 @@ class MotionPolicy(nn.Module):
             spaces.action,
         )
 
+    def _direct_action(self, observation_history: Tensor, future_goals: Tensor) -> Tensor:
+        latent = torch.tanh(self.goal_encoder(future_goals.flatten(start_dim=-2)))
+        inputs = torch.cat((observation_history.flatten(start_dim=-2), latent), dim=-1)
+        return torch.tanh(self.action_decoder(inputs))
+
     def forward(self, observation_history: Tensor, future_goals: Tensor) -> Tensor:
         if observation_history.shape[-2:] != (
             self.spaces.history,
@@ -62,9 +73,27 @@ class MotionPolicy(nn.Module):
             raise ValueError("Unexpected observation history shape")
         if future_goals.shape[-2:] != (self.spaces.goal_horizon, self.spaces.goal):
             raise ValueError("Unexpected future reference shape")
-        latent = torch.tanh(self.goal_encoder(future_goals.flatten(start_dim=-2)))
-        inputs = torch.cat((observation_history.flatten(start_dim=-2), latent), dim=-1)
-        return torch.tanh(self.action_decoder(inputs))
+        if self.relative_goal:
+            # Translation-equivariant representation for the cart coordinate.
+            current_target = future_goals[:, 0, :1].unsqueeze(1)
+            observation_history = torch.cat(
+                (
+                    observation_history[..., :1] - current_target,
+                    observation_history[..., 1:],
+                ),
+                dim=-1,
+            )
+            future_goals = torch.cat(
+                (future_goals[..., :1] - current_target, future_goals[..., 1:]),
+                dim=-1,
+            )
+        if self.antisymmetric:
+            # f(x) = (h(x) - h(-x))/2 gives f(-x) = -f(x) by construction.
+            return 0.5 * (
+                self._direct_action(observation_history, future_goals)
+                - self._direct_action(-observation_history, -future_goals)
+            )
+        return self._direct_action(observation_history, future_goals)
 
 
 class Critic(nn.Module):
