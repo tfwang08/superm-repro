@@ -1,3 +1,5 @@
+> Historical independent G1 standing prototype. The current paper reproduction uses the pinned authors' implementation: [Official reproduction](OFFICIAL_REPRO.md).
+
 # Stage 3.1: Unitree G1 standing in MuJoCo
 
 This is the first humanoid implementation of the existing SuperMimic-style training loop. The standing task now uses the paper's Appendix A observation layout, tracking-reward terms, reference-relative termination conditions, and domain-randomization ranges. It is still **a static-reference standing benchmark**, not a reproduction of multi-motion training, the published humanoid training budget, or the deployed controller.

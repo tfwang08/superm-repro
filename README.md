@@ -4,6 +4,20 @@ An **unofficial, incremental reproduction** of [SuperMimic: Scaling Humanoid Who
 
 The goal is to reproduce the training **mechanism first**, then move from a small articulated system to Unitree G1 motion tracking. This repository is not the authors' implementation and does not yet reproduce their humanoid results.
 
+## Canonical G1 reproduction: authors' open-source implementation
+
+The authors have now [released SuperMimic](https://github.com/HybridRobotics/supermimic) with its [mjlab_research](https://github.com/HybridRobotics/mjlab_research) simulator dependency. **From this point on, our G1 experiments run their code directly**, pinned to exact upstream commits. Our own earlier G1 standing code is retained only as a historical teaching prototype.
+
+```bash
+bash scripts/official_setup.sh
+bash scripts/official_train.sh SuperMimic-GenCoord-G1 \
+  --motion-file /absolute/path/to/g1_reference_motions.npz \
+  --runner.actor_obs proprio --runner.history_length 10 \
+  --runner.max_iterations 320000
+```
+
+See [docs/OFFICIAL_REPRO.md](docs/OFFICIAL_REPRO.md) for the pinned revisions, Python 3.13/CUDA setup, reference-motion access, evaluation, and exact provenance. This wrapper invokes the authors' actual training runner, not our local G1 trainer.
+
 ## Existing milestone: inverted pendulums in MuJoCo
 
 We use a **MuJoCo cart-pole with one, two, or three passive inverted links**, driven by **one horizontal cart-force actuator**. The current experiment defaults to two links, and three links can be selected with `--links 3`. The task is intentionally underactuated; neither pole has its own motor.
@@ -27,7 +41,7 @@ The `experiment` profile adds three changes relative to the `baseline` profile:
 
 Both profiles reuse the same world-model fitting, 32-step imagination, critic, and optimizer pipeline. The profiles can be compared with identical seeds, simulator budgets, checkpoint-selection rules, and long tests. See [docs/MULTILINK_EXPERIMENT.md](docs/MULTILINK_EXPERIMENT.md).
 
-## New milestone: Unitree G1 standing (Stage 3.1)
+## Historical prototype: Unitree G1 standing (Stage 3.1)
 
 The repository also includes a **floating-base, 29-actuator Unitree G1** with real MuJoCo foot contacts, a static standing target, and the same learned-world-model training algorithm. It uses a physics-only derivative of Google DeepMind's MuJoCo Menagerie G1 MJX model; visual meshes are removed, while the mass properties, collision primitives, PD actuators, and contact definitions are preserved. The upstream BSD-3-Clause license is included alongside the assets.
 
@@ -90,7 +104,7 @@ The trainer prints simulator reward, world-model loss, imagined return, and crit
 | --- | --- | --- |
 | **1 — Single-link cart-pole** | Verify the full replay → world model → differentiable actor-critic pipeline. | Complete for basic training-loop verification; reproducibility metrics recorded. |
 | **2 — Two/three-link pendulum (in progress)** | Learn step-target control with exact translation and reflection symmetries. | Tests pass; compare multiple seeds with independent checkpoint selection and repeated reversals. |
-| **3 — G1 simple motions (started)** | A 29-actuator G1 standing simulation now uses Appendix A's observation, reward, termination, and domain randomization; next learn reliable standing, add squats and motion references. | Stable motion tracking in MuJoCo with reportable returns and termination rates. |
+| **3 — G1 whole-body tracking (official code)** | Clone the pinned authors' SuperMimic and mjlab_research revisions, train on licensed reference motions, and establish an unchanged official baseline. | Confirm full official training and deterministic evaluation before proposing ablations. |
 | **4 — Scaling and evaluation** | Import filtered BONES-SEED motions and run multi-motion, perturbation, and throughput evaluations. | Report deterministic benchmark failures, normalized return, model error, and GPU-hours alongside paper baselines. |
 
 See [docs/STAGES.md](docs/STAGES.md) for implementation details and testable acceptance criteria.
@@ -111,6 +125,8 @@ See [docs/STAGES.md](docs/STAGES.md) for implementation details and testable acc
 - `src/superm_repro/compare.py`: matched four-seed baseline/experiment runs with independent validation and frozen long tests.
 
 ## What is not reproduced yet
+
+The limitations below apply to **our independent legacy implementation**, not to the authors' official source linked above.
 
 The cart-pole experiments remain small underactuated examples, and the G1 benchmark covers only **static standing**. Its policy now uses Appendix A's proprioception, body-tracking reward, and physical-parameter randomization; nevertheless, the world model uses raw simulator coordinates and the static standing reference does not represent the paper's time-varying motion targets. Full G1 motion imitation, BONES-SEED replay, return-based reset sampling, original actuator calibration, and multi-GPU training remain unimplemented. The paper uses MuJoCo Warp for GPU-batched simulation; this repository uses standard MuJoCo for simulator data collection. No humanoid success claim is made.
 

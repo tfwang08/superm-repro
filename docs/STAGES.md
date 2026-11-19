@@ -1,3 +1,5 @@
+> G1 motion-tracking work now uses the pinned authors' source in [OFFICIAL_REPRO.md](OFFICIAL_REPRO.md); the G1 steps below record earlier independent experiments.
+
 # Reproduction milestones and verification
 
 This project separates **algorithm correctness**, **controlled instability**, **humanoid task fidelity**, and **benchmark reproducibility**. Success in an earlier stage does not establish the later stages.
