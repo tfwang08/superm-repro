@@ -31,9 +31,9 @@ Both profiles reuse the same world-model fitting, 32-step imagination, critic, a
 
 The repository also includes a **floating-base, 29-actuator Unitree G1** with real MuJoCo foot contacts, a static standing target, and the same learned-world-model training algorithm. It uses a physics-only derivative of Google DeepMind's MuJoCo Menagerie G1 MJX model; visual meshes are removed, while the mass properties, collision primitives, PD actuators, and contact definitions are preserved. The upstream BSD-3-Clause license is included alongside the assets.
 
-The G1 task uses 100 state features (36 positions, 35 velocities, and 29 previous normalized actions), 29 joint-setpoint actions, and a 30-dimensional standing target. Action noise, 8-step world-model learning, differentiable actor rollouts, critic bootstrapping, and independent checkpoint selection are all connected end-to-end. Root-quaternion predictions are projected onto unit quaternions by a differentiable operation.
+The G1 task uses 100 simulator-state features (36 positions, 35 velocities, and 29 previous normalized actions) and a **93-dimensional proprioceptive policy observation**, following the five groups and sensor-noise intervals in Appendix A.1. Actions are 29 joint setpoint offsets, and the static standing goal is 30-dimensional. All Appendix A.3 domain-randomization groups (friction, joint calibration, and torso COM) are sampled into a 33-dimensional context. A separate differentiable PyTorch forward-kinematics implementation supplies all Appendix A.2 body/root tracking-reward terms, action smoothness, and joint-limit penalties. Termination now follows the paper's reference-relative height/tilt thresholds. Action noise, 8-step world-model learning, differentiable actor rollouts, critic bootstrapping, and independent checkpoint selection are connected end-to-end.
 
-The current implementation is **an executable first experiment, not an already solved humanoid standing controller**. The initial two-iteration wiring run survived **0/2** held-out 96-step tests. A subsequent 20-iteration small-network pilot reduced held-out world-model error but also failed all **8** held-out 500-step standing tests. The paper's precise observations, motion rewards, calibration randomization, dataset, and humanoid training results have not been reproduced. See [docs/G1_STANDING.md](docs/G1_STANDING.md) for the G1 task definition, limitations, and experiment protocol.
+The current implementation is **an executable first experiment, not an already solved humanoid standing controller**. A new two-iteration wiring test with the Appendix A interfaces completed but survived **0/2** held-out 96-step tests. Historical results from the prior simplified G1 protocol are not directly comparable. Time-varying full-body motion goals, the original reference-reset sampler, original-scale parallel data collection, and humanoid benchmark results have not been reproduced. See [docs/G1_STANDING.md](docs/G1_STANDING.md) for the exact G1 task definition, paper-alignment checklist, and experiment protocol.
 
 ## Install and run
 
@@ -90,7 +90,7 @@ The trainer prints simulator reward, world-model loss, imagined return, and crit
 | --- | --- | --- |
 | **1 — Single-link cart-pole** | Verify the full replay → world model → differentiable actor-critic pipeline. | Complete for basic training-loop verification; reproducibility metrics recorded. |
 | **2 — Two/three-link pendulum (in progress)** | Learn step-target control with exact translation and reflection symmetries. | Tests pass; compare multiple seeds with independent checkpoint selection and repeated reversals. |
-| **3 — G1 simple motions (started)** | A real 29-actuator G1 standing simulation is integrated; next learn reliable standing, add squats and a small reference set, then match the paper's observations and rewards. | Stable motion tracking in MuJoCo with reportable returns and termination rates. |
+| **3 — G1 simple motions (started)** | A 29-actuator G1 standing simulation now uses Appendix A's observation, reward, termination, and domain randomization; next learn reliable standing, add squats and motion references. | Stable motion tracking in MuJoCo with reportable returns and termination rates. |
 | **4 — Scaling and evaluation** | Import filtered BONES-SEED motions and run multi-motion, perturbation, and throughput evaluations. | Report deterministic benchmark failures, normalized return, model error, and GPU-hours alongside paper baselines. |
 
 See [docs/STAGES.md](docs/STAGES.md) for implementation details and testable acceptance criteria.
@@ -99,6 +99,7 @@ See [docs/STAGES.md](docs/STAGES.md) for implementation details and testable acc
 
 - `src/superm_repro/mujoco_cartpole.py`: 1/2/3-link underactuated MuJoCo models, force action, reference curricula, and termination.
 - `src/superm_repro/mujoco_g1.py`: floating-base G1 with contact-aware MuJoCo dynamics, normalized PD joint-setpoint actions, and differentiable standing reward and termination.
+- `src/superm_repro/g1_kinematics.py`: differentiable G1 body-position, quaternion, and spatial-velocity FK verified against MuJoCo.
 - `src/superm_repro/assets/unitree_g1/`: BSD-licensed physics-only G1 MJCF and standing scene.
 - `src/superm_repro/collect.py`: on-policy simulator rollout and action-noised transition logging.
 - `src/superm_repro/replay.py`: bounded episode replay, 8-step windows, and reference-aligned imagination starts.
@@ -111,7 +112,7 @@ See [docs/STAGES.md](docs/STAGES.md) for implementation details and testable acc
 
 ## What is not reproduced yet
 
-The cart-pole experiments remain small underactuated examples, and the new G1 benchmark covers only **static standing**. Although the G1 now has floating-base rigid-body dynamics and foot-ground contacts, it still uses privileged observations, a simplified analytic standing reward, and randomized contact friction alone. Full G1 motion tracking, the paper's deployable observation interface, complete domain randomization, BONES-SEED replay, motion-specific reset sampling, and multi-GPU training remain unimplemented. The paper uses MuJoCo Warp for GPU-batched simulation; this repository uses standard MuJoCo for simulator data collection. No humanoid success claim is made.
+The cart-pole experiments remain small underactuated examples, and the G1 benchmark covers only **static standing**. Its policy now uses Appendix A's proprioception, body-tracking reward, and physical-parameter randomization; nevertheless, the world model uses raw simulator coordinates and the static standing reference does not represent the paper's time-varying motion targets. Full G1 motion imitation, BONES-SEED replay, return-based reset sampling, original actuator calibration, and multi-GPU training remain unimplemented. The paper uses MuJoCo Warp for GPU-batched simulation; this repository uses standard MuJoCo for simulator data collection. No humanoid success claim is made.
 
 ## Paper references
 

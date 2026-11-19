@@ -34,15 +34,15 @@ This project separates **algorithm correctness**, **controlled instability**, **
 
 **Scope:** Use a licensed G1 MuJoCo asset, first for standing and shallow squats, then for short simple motion clips.
 
-**Stage 3.1 implemented:** A 29-actuator floating-base G1 with primitive collision contacts, position-setpoint actions, randomized contact friction, a stationary `home` reference, differentiable standing reward/termination, and the existing 8-step model / H-step actor / critic loop. This is an executable benchmark, not yet a trained standing controller. See [G1_STANDING.md](G1_STANDING.md).
+**Stage 3.1 implemented:** A 29-actuator floating-base G1 with contact-aware PD setpoints, 93-dimensional proprioception and Table A.1 sensor noise, all Appendix A.2 reward terms through differentiable FK, reference-relative height/tilt termination, and all Appendix A.3 context randomizations. The benchmark still uses a stationary `home` reference and the existing 8-step model / H-step actor / critic loop. It is executable, not yet a trained standing controller. See [G1_STANDING.md](G1_STANDING.md).
 
 **Required changes:**
 
 - Add model visualization and further verify contact dynamics against the unmodified Menagerie model.
-- Implement the paper's joint/root state and 29-joint observation history, including IMU angular velocity, projected gravity, and the Appendix A.1 sensor-noise ranges.
-- Implement differentiable forward kinematics and the body/root tracking reward of Appendix A.2 without the removed self-collision penalty.
-- Implement height/tilt reference-relative termination and the corresponding soft survival signal.
-- Use Appendix A context: friction, joint calibration offsets, and torso center-of-mass offsets.
+- Extend the standing-only reference representation to complete time-varying, multi-body G1 motion goals and tracking trajectories.
+- Validate the joint and IMU observation conventions against the original simulator implementation and real sensor filtering.
+- Verify the Appendix A body tracking subset for motion clips, which is currently all 30 non-world bodies for the standing reference.
+- Check the PD gains, setpoint scale, simulator-state canonicalization, and reset distribution against the original humanoid training setup.
 - Match Appendix C model widths and Appendix D return-based reference reset sampler.
 - Profile GPU batching and migrate collection to MuJoCo Warp when necessary.
 

@@ -41,7 +41,10 @@ class PointMassTracking:
         return noise
 
     @staticmethod
-    def reward(next_state: Tensor, action: Tensor, next_goal: Tensor) -> Tensor:
+    def reward(
+        next_state: Tensor, action: Tensor, next_goal: Tensor,
+        previous_state: Tensor | None = None,
+    ) -> Tensor:
         squared_error = (next_state[..., :2] - next_goal).square().sum(dim=-1)
         return torch.exp(-2.0 * squared_error) - 0.01 * action.square().sum(dim=-1)
 

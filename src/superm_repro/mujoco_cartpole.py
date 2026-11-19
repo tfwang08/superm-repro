@@ -160,7 +160,10 @@ class MujocoCartPole:
         return cart_error, absolute_angles - absolute_targets
 
     @classmethod
-    def reward(cls, next_state: Tensor, action: Tensor, next_goal: Tensor) -> Tensor:
+    def reward(
+        cls, next_state: Tensor, action: Tensor, next_goal: Tensor,
+        previous_state: Tensor | None = None,
+    ) -> Tensor:
         cart_error, angle_errors = cls._tracking_errors(next_state, next_goal)
         return torch.exp(
             -cart_error.square() - 4.0 * angle_errors.square().mean(dim=-1)

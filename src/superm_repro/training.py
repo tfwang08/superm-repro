@@ -1,8 +1,9 @@
 """Paper-aligned k=8 model fitting and H=32 differentiable actor-critic updates."""
 
+from collections.abc import Iterator
 from contextlib import contextmanager
 from dataclasses import dataclass
-from typing import Iterator, Protocol
+from typing import Protocol
 
 import torch
 from torch import Tensor, nn
@@ -17,7 +18,10 @@ class DifferentiableTask(Protocol):
 
     def observation_noise(self, ideal: Tensor) -> Tensor: ...
 
-    def reward(self, next_state: Tensor, action: Tensor, next_goal: Tensor) -> Tensor: ...
+    def reward(
+        self, next_state: Tensor, action: Tensor, next_goal: Tensor,
+        previous_state: Tensor | None = None,
+    ) -> Tensor: ...
 
     def soft_done(self, next_state: Tensor, next_goal: Tensor) -> Tensor: ...
 
@@ -103,7 +107,7 @@ def imagine(
         action = actor(history, future_goals)
         next_state = model(state, action, starts.contexts)
         next_goal = starts.references[:, t + 1]
-        reward = task.reward(next_state, action, next_goal)
+        reward = task.reward(next_state, action, next_goal, previous_state=state)
         done = task.soft_done(next_state, next_goal)
 
         discounted_return = discounted_return + (config.gamma**t) * survival * reward

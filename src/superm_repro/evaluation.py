@@ -23,7 +23,10 @@ class EvaluatableTask(Protocol):
 
     def observation(self, state: Tensor) -> Tensor: ...
 
-    def reward(self, next_state: Tensor, action: Tensor, next_goal: Tensor) -> Tensor: ...
+    def reward(
+        self, next_state: Tensor, action: Tensor, next_goal: Tensor,
+        previous_state: Tensor | None = None,
+    ) -> Tensor: ...
 
     def hard_done(self, next_state: Tensor, next_goal: Tensor) -> Tensor: ...
 
@@ -66,7 +69,11 @@ def evaluate_tracking_task(
         random.seed(seed)
         for _ in range(episodes):
             reference = task.reference(max_steps + actor.spaces.goal_horizon + 1)
-            context = torch.ones(task.spaces.context)
+            context_factory = getattr(task, "evaluation_context", None)
+            context = (
+                context_factory() if callable(context_factory)
+                else torch.ones(task.spaces.context)
+            )
             state = task.reset(reference[0], context)
             history = task.observation(state).repeat(actor.spaces.history, 1)
             states = [state]
@@ -80,11 +87,14 @@ def evaluate_tracking_task(
                     history.unsqueeze(0).to(actor_device), future.to(actor_device)
                 ).squeeze(0).cpu()
                 next_state = task.step(action)
-                episode_return += float(task.reward(next_state, action, reference[t + 1]))
+                episode_return += float(task.reward(
+                    next_state, action, reference[t + 1], previous_state=state
+                ))
                 terminated = bool(task.hard_done(next_state, reference[t + 1]))
                 states.append(next_state)
                 actions.append(action)
                 history = torch.cat((history[1:], task.observation(next_state).unsqueeze(0)))
+                state = next_state
                 if terminated:
                     break
 

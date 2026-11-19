@@ -25,7 +25,10 @@ class TrackingSimulator(Protocol):
 
     def observation_noise(self, ideal: Tensor) -> Tensor: ...
 
-    def reward(self, next_state: Tensor, action: Tensor, next_goal: Tensor) -> Tensor: ...
+    def reward(
+        self, next_state: Tensor, action: Tensor, next_goal: Tensor,
+        previous_state: Tensor | None = None,
+    ) -> Tensor: ...
 
     def hard_done(self, next_state: Tensor, next_goal: Tensor) -> Tensor: ...
 
@@ -61,7 +64,9 @@ def collect_episode(
         executed_action = action + config.action_noise_std * torch.randn_like(action)
         next_state = task.step(executed_action)
         next_ideal = task.observation(next_state)
-        reward = task.reward(next_state, executed_action, reference[t + 1])
+        reward = task.reward(
+            next_state, executed_action, reference[t + 1], previous_state=state
+        )
         done = task.hard_done(next_state, reference[t + 1])
 
         states.append(next_state.clone())

@@ -17,7 +17,6 @@ from .mujoco_g1 import MujocoG1Standing
 from .replay import ReplayBuffer
 from .training import fit_critic, fit_world_model, update_actor
 
-
 NETWORK_SIZES = {
     "tiny": {
         "world": (64, 64),
@@ -65,20 +64,24 @@ def main() -> None:
     parser.add_argument("--checkpoint", default="checkpoints/g1_standing.pt")
     args = parser.parse_args()
 
-    if min(
-        args.iterations,
-        args.initial_episodes,
-        args.episode_steps,
-        args.model_updates,
-        args.batch_size,
-        args.horizon,
-        args.checkpoint_every,
-        args.eval_episodes,
-        args.eval_steps,
-        args.long_test_episodes,
-        args.long_test_steps,
-        args.torch_threads,
-    ) < 1 or args.pretrain_model_updates < 0:
+    if (
+        min(
+            args.iterations,
+            args.initial_episodes,
+            args.episode_steps,
+            args.model_updates,
+            args.batch_size,
+            args.horizon,
+            args.checkpoint_every,
+            args.eval_episodes,
+            args.eval_steps,
+            args.long_test_episodes,
+            args.long_test_steps,
+            args.torch_threads,
+        )
+        < 1
+        or args.pretrain_model_updates < 0
+    ):
         parser.error("Training and evaluation sizes must be positive")
 
     random.seed(args.seed)
@@ -94,7 +97,10 @@ def main() -> None:
     sizes = NETWORK_SIZES[args.network_size]
     config = replace(TrainConfig(), imagination_horizon=args.horizon)
     model = WorldModel(
-        task.spaces, hidden=sizes["world"], quaternion_slice=(3, 7)
+        task.spaces,
+        hidden=sizes["world"],
+        quaternion_slice=(3, 7),
+        action_state_slice=(71, 100),
     ).to(device)
     actor = MotionPolicy(
         task.spaces,
@@ -110,8 +116,12 @@ def main() -> None:
     replay = ReplayBuffer(capacity_steps=max(65_536, args.episode_steps * 2))
 
     initial_evaluation = evaluate_tracking_task(
-        validation_task, actor, model,
-        episodes=args.eval_episodes, max_steps=args.eval_steps, seed=args.validation_seed,
+        validation_task,
+        actor,
+        model,
+        episodes=args.eval_episodes,
+        max_steps=args.eval_steps,
+        seed=args.validation_seed,
     )
     print(f"Initial deterministic G1 evaluation: {initial_evaluation}", flush=True)
 
@@ -139,8 +149,10 @@ def main() -> None:
             losses.append(fit_world_model(model, windows, model_optimizer, config))
 
         starts = replay.sample_starts(
-            args.batch_size, config.imagination_horizon,
-            task.spaces.history, task.spaces.goal_horizon,
+            args.batch_size,
+            config.imagination_horizon,
+            task.spaces.history,
+            task.spaces.goal_horizon,
         ).to(device)
         rollout = update_actor(model, actor, critic, task, starts, actor_optimizer, config)
         critic_loss = fit_critic(critic, rollout, critic_optimizer, config)
@@ -172,9 +184,13 @@ def main() -> None:
                 candidate,
             )
             report = evaluate_tracking_task(
-                validation_task, actor, model,
-                episodes=args.eval_episodes, max_steps=args.eval_steps,
-                model_window=config.model_window, seed=args.validation_seed,
+                validation_task,
+                actor,
+                model,
+                episodes=args.eval_episodes,
+                max_steps=args.eval_steps,
+                model_window=config.model_window,
+                seed=args.validation_seed,
             )
             print(f"Independent validation at iteration {iteration}: {report}", flush=True)
             validation_history.append(
@@ -210,18 +226,20 @@ def main() -> None:
     if args.long_test:
         held_out_task = MujocoG1Standing(scene_path=args.scene)
         score = evaluate_tracking_task(
-            held_out_task, actor, model,
-            episodes=args.long_test_episodes, max_steps=args.long_test_steps,
-            model_window=config.model_window, seed=args.test_seed,
+            held_out_task,
+            actor,
+            model,
+            episodes=args.long_test_episodes,
+            max_steps=args.long_test_steps,
+            model_window=config.model_window,
+            seed=args.test_seed,
         )
         summary["long_test"] = asdict(score)
         survivors = round(args.long_test_episodes * (1.0 - score.failure_rate))
         print(f"Frozen G1 survival: {survivors}/{args.long_test_episodes}", flush=True)
         print(f"Frozen G1 long-test metrics: {score}", flush=True)
 
-    output.with_suffix(".json").write_text(
-        json.dumps(summary, indent=2) + "\n", encoding="utf-8"
-    )
+    output.with_suffix(".json").write_text(json.dumps(summary, indent=2) + "\n", encoding="utf-8")
     print(f"Saved selected checkpoint: {output}", flush=True)
 
 

@@ -27,6 +27,7 @@ class WorldModel(nn.Module):
         spaces: Spaces,
         hidden: Sequence[int] = (2048, 2048, 2048),
         quaternion_slice: tuple[int, int] | None = None,
+        action_state_slice: tuple[int, int] | None = None,
     ):
         super().__init__()
         if quaternion_slice is not None and (
@@ -35,6 +36,12 @@ class WorldModel(nn.Module):
         ):
             raise ValueError("Quaternion slice must identify four state components")
         self.quaternion_slice = quaternion_slice
+        if action_state_slice is not None and (
+            action_state_slice[1] - action_state_slice[0] != spaces.action
+            or not (0 <= action_state_slice[0] < action_state_slice[1] <= spaces.state)
+        ):
+            raise ValueError("Action-history slice must match the action dimension")
+        self.action_state_slice = action_state_slice
         self.dynamics = make_mlp(
             spaces.state + spaces.action + spaces.context, hidden, spaces.state
         )
@@ -49,6 +56,9 @@ class WorldModel(nn.Module):
             prediction = torch.cat(
                 (prediction[..., :start], quaternion, prediction[..., end:]), dim=-1
             )
+        if self.action_state_slice is not None:
+            start, end = self.action_state_slice
+            prediction = torch.cat((prediction[..., :start], action, prediction[..., end:]), dim=-1)
         return prediction
 
 
@@ -70,9 +80,7 @@ class MotionPolicy(nn.Module):
         self.spaces = spaces
         self.relative_goal = relative_goal
         self.antisymmetric = antisymmetric
-        self.goal_encoder = make_mlp(
-            spaces.goal_horizon * spaces.goal, encoder_hidden, latent_dim
-        )
+        self.goal_encoder = make_mlp(spaces.goal_horizon * spaces.goal, encoder_hidden, latent_dim)
         self.action_decoder = make_mlp(
             spaces.history * spaces.observation + latent_dim,
             decoder_hidden,
